@@ -1,0 +1,120 @@
+﻿using Oracle.ManagedDataAccess.Client;
+using Org.BouncyCastle.Tls.Crypto;
+using SuperShopManagementSystem.Admin_Controls;
+using SuperShopManagementSystem.Manager_Controls;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using System.Xml.Linq;
+
+namespace SuperShopManagementSystem
+{
+    public partial class FormAdminUpdatePassword : Form
+    {
+        private FormLogin Fl { get; set; }
+        private FormAdminDashboard Fa { get; set; }       
+        private DataAccess Da { get; set; }
+        private string AdminId { get; set; }
+
+        public FormAdminUpdatePassword()
+        {
+            InitializeComponent();
+            this.Da = new DataAccess();
+            this.StartPosition = FormStartPosition.CenterScreen;
+            this.WindowState = FormWindowState.Maximized;
+        }
+
+        public FormAdminUpdatePassword(string adminId, FormLogin fl, FormAdminDashboard fa):this()
+        {
+            this.AdminId = adminId;
+            this.Fl = fl;
+            this.Fa = fa;
+        }
+
+        private void btnSave_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(this.txtOldPassword.Text) ||
+                    string.IsNullOrWhiteSpace(this.txtNewPassword.Text) ||
+                    string.IsNullOrWhiteSpace(this.txtConfirmPassword.Text))
+                {
+                    MessageBox.Show("Please fill all fields.");
+                    return;
+                }
+
+                if (this.txtNewPassword.Text != this.txtConfirmPassword.Text)
+                {
+                    MessageBox.Show("New password and confirm password do not match.");
+                    return;
+                }
+
+                int adminId = Convert.ToInt32(this.AdminId);
+
+                // 1) old password check
+                string sqlCheck = @"SELECT Admin_ID FROM Admin WHERE Admin_ID = :idVal AND Admin_Password = :oldPass";
+
+                OracleParameter[] checkParams =
+                {
+                    new OracleParameter("idVal", adminId),
+                    new OracleParameter("oldPass", this.txtOldPassword.Text)
+                };
+
+                DataTable dt = this.Da.ExecuteQueryTable(sqlCheck, checkParams);
+
+                if (dt.Rows.Count != 1)
+                {
+                    MessageBox.Show("Old password is incorrect.");
+                    return;
+                }
+
+                // 2) update new password
+                string sqlUpdate = @"UPDATE Admin SET Admin_Password = :newPass WHERE Admin_ID = :idVal";
+
+                OracleParameter[] updateParams =
+                {
+                    new OracleParameter("newPass", this.txtNewPassword.Text),
+                    new OracleParameter("idVal", adminId)
+                };
+
+                int count = this.Da.ExecuteDMLQuery(sqlUpdate, updateParams);
+
+                MessageBox.Show(count == 1 ? "Password updated successfully." : "Password update failed.");
+
+                this.txtOldPassword.Clear();
+                this.txtNewPassword.Clear();
+                this.txtConfirmPassword.Clear();
+
+                this.Hide();
+                this.Fl.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error: " + ex.Message);
+            }
+        }
+
+
+        private void btnBack_Click(object sender, EventArgs e)
+        {
+            this.Hide();
+            this.Fa.Show();
+        }
+
+        private void FormUpdatePassword_FormClosed(object sender, FormClosedEventArgs e)
+        {
+            Application.Exit();
+        }
+
+        private void FormAdminUpdatePassword_Load(object sender, EventArgs e)
+        {
+            this.StartPosition = FormStartPosition.CenterScreen;
+        }
+    }
+}
